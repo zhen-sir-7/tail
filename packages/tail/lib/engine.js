@@ -1,10 +1,13 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { createRequire } from 'module';
 
 import { Scanner } from './scanner.js';
 import { Reporter } from './reporter.js';
 import { Fixer } from './fixer.js';
 import { Profile } from './profile.js';
+
+const require = createRequire(import.meta.url);
 
 let _idCounter = 0;
 const RESET = '\x1b[0m';
@@ -24,6 +27,18 @@ export class Engine {
     this.reporter = new Reporter({ silent });
     this.fixer = new Fixer(this.reporter);
     this.profile = null;
+    this.dataChecks = null;
+  }
+
+  async _loadDataChecks() {
+    if (this.dataChecks) return;
+    try {
+      const mod = await import(/* @vite-ignore */ join(this.targetDir, 'lib', 'data-checks.js'));
+      this.dataChecks = mod.getActiveChecks ? mod.getActiveChecks() : (mod.dataChecks || []);
+    } catch {
+      // data-checks.js 不存在时静默跳过
+      this.dataChecks = [];
+    }
   }
 
   async init() {
@@ -87,7 +102,8 @@ export class Engine {
       };
 
       // Determine which check groups to run based on profile
-      const checks = this._getChecksForProfile(profile);
+      await this._loadDataChecks();
+      const checks = await this._getChecksForProfile(profile);
 
       for (const check of checks) {
         try {
@@ -122,7 +138,7 @@ export class Engine {
     return this._sortByImpact(deduped);
   }
 
-  _getChecksForProfile(profile) {
+  async _getChecksForProfile(profile) {
     const checks = [];
     const type = profile?.type || 'frontend-react';
     const patterns = profile?.patterns || {};
@@ -602,6 +618,28 @@ export class Engine {
           return [];
         }
       });
+    }
+
+    // ─── Merge data-driven checks from insights ───
+    if (this.dataChecks && this.dataChecks.length > 0) {
+      const active = this.dataChecks.filter(c => (c.confidence || 0) >= 50);
+      checks.push(...active.map(dc => ({
+        id: dc.id,
+        title: dc.title,
+        impact: dc.impact || 50,
+        detect: (ctx) => {
+          try {
+            const results = dc.detect(ctx) || [];
+            // Patch file path and fixed status from context
+            for (const r of results) {
+              if (!r.file) r.file = ctx.file;
+              r.fixed = false;
+            }
+            return results;
+          } catch { return []; }
+        },
+        _dataDriven: true,
+      })));
     }
 
     return checks;
