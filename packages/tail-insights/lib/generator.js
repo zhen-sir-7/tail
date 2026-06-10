@@ -1,57 +1,65 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 const CHECK_TEMPLATES = {
-  'silent-failure': `for (let i = 0; i < lines.length - 1; i++) {
-      if (/catch\\\\s*\\\\(/.test(lines[i])) {
-        const next = lines[i + 1].trim();
-        if (next === '{' && lines[i + 2] && /^\\\\s*\\\\}\\\\s*$/.test(lines[i + 2])) {
-          results.push(issue('silent-failure', i + 1, 'code-quality', 'high', 95, '空的 catch 块', 'catch 块为空，错误被静默吞掉'));
+  'silent-failure': `// silent-failure: 静默错误 (来自 insights crawl)
+    checks.push({
+      id: 'silent-failure', title: '静默错误', impact: 95,
+      detect: (ctx) => {
+        const r = [];
+        for (let i = 0; i < ctx.lines.length - 1; i++) {
+          if (/catch\\s*\\(/.test(ctx.lines[i]) && ctx.lines[i+1].trim() === '{' && ctx.lines[i+2] && /^\\s*\\}\\s*$/.test(ctx.lines[i+2]))
+            r.push({ id:'silent-failure-'+i, checkId:'silent-failure', file:ctx.file, line:i+1, category:'code-quality', severity:'high', impact:95, title:'空 catch 块', description:'错误被静默吞掉', fixable:false });
+          if (/\\.catch\\(\\s*[\\w]+\\s*=>\\s*\\{\\s*\\}\\s*\\)/.test(ctx.lines[i]))
+            r.push({ id:'silent-failure-catch-'+i, checkId:'silent-failure', file:ctx.file, line:i+1, category:'code-quality', severity:'high', impact:95, title:'.catch() 为空', description:'Promise 错误被忽略', fixable:false });
         }
+        return r;
       }
-      if (/\\\\.catch\\\\(\\\\s*[\\\\w]+\\\\s*=>\\\\s*\\\\{\\\\s*\\\\}\\\\s*\\\\)/.test(lines[i])) {
-        results.push(issue('silent-failure', i + 1, 'code-quality', 'high', 95, '静默错误', '.catch() 为空，Promise 错误被忽略'));
+    });`,
+  'infinite-loading': `// infinite-loading: 缺少超时 (来自 insights crawl)
+    checks.push({
+      id: 'infinite-loading', title: '缺少超时', impact: 90,
+      detect: (ctx) => {
+        if (ctx.type === 'css') return [];
+        if (/(fetch|axios|useQuery|mutateAsync)/.test(ctx.content) && !/(AbortController|signal|timeout|Promise\\.race)/.test(ctx.content))
+          return [{ id:'infinite-loading-1', checkId:'infinite-loading', file:ctx.file, line:1, category:'workflow', severity:'high', impact:90, title:'异步操作无超时', description:'可能永远挂起，建议加 AbortController', fixable:false }];
+        return [];
       }
-    }`,
-  'infinite-loading': `if (type !== 'css' && /(fetch|axios|useQuery|mutateAsync)/.test(content)) {
-      if (!/(AbortController|signal|timeout|Promise\\\\.race)/.test(content))
-        results.push(issue('infinite-loading', 1, 'workflow', 'high', 90, '缺少超时', '异步操作缺少超时机制，可能永远挂起'));
-    }`,
-  'missing-input-validation': `if (!['css','html'].includes(type) && /(req\\\\.(body|params|query)|process\\\\.argv|prompt|input|formData)/.test(content) && !/(validate|zod|yup|joi|schema|sanitize)/.test(content)) {
-      results.push(issue('missing-input-validation', 1, 'workflow', 'high', 90, '缺少输入验证', '用户输入未验证可能导致崩溃或安全漏洞'));
-    }`,
-  'credential-exposure': `for (let i = 0; i < lines.length; i++) {
-      if (/(api[_-]?key|sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16})/.test(lines[i]) && !/^\\\\s*\\\\/\\\\//.test(lines[i]) && !/process\\\\.env/.test(lines[i]) && !/import/.test(lines[i])) {
-        results.push(issue('credential-exposure', i + 1, 'code-quality', 'critical', 100, '凭证硬编码', 'API Key 应使用环境变量'));
-        break;
+    });`,
+  'missing-input-validation': `// missing-input-validation: 缺少输入验证 (来自 insights crawl)
+    checks.push({
+      id: 'missing-input-validation', title: '缺少输入验证', impact: 90,
+      detect: (ctx) => {
+        if (['css','html'].includes(ctx.type)) return [];
+        if (/(req\\.(body|params|query)|process\\.argv|prompt|input|formData)/.test(ctx.content) && !/(validate|zod|yup|joi|schema|sanitize)/.test(ctx.content))
+          return [{ id:'input-validation-1', checkId:'missing-input-validation', file:ctx.file, line:1, category:'workflow', severity:'high', impact:90, title:'输入未验证', description:'可能导致崩溃或安全漏洞', fixable:false }];
+        return [];
       }
-    }`,
-  'data-corruption': `if (!['css','html'].includes(type) && /JSON\\\\.(stringify|parse)/.test(content) && !/try\\\\s*\\\\{/.test(content)) {
-      results.push(issue('data-corruption', 1, 'code-quality', 'high', 85, '数据完整性风险', 'JSON 操作无 try-catch，非法数据将崩溃'));
-    }`,
-  'auth-issues': `if (!['css','html'].includes(type) && /(fetch|axios)/.test(content) && !/(auth|token|Authorization|Bearer)/.test(content)) {
-      results.push(issue('auth-issues', 1, 'workflow', 'critical', 100, '缺少鉴权', 'API 调用未检测到鉴权机制'));
-    }`,
-  'destructive-confirm': `if (/(delete|remove|destroy)/i.test(content) && !/(confirm|confirmDialog|window\\\\.confirm|are you sure)/i.test(content)) {
-      results.push(issue('destructive-confirm', 1, 'workflow', 'high', 75, '缺少删除确认', '删除操作无确认弹窗'));
-    }`,
-  'stale-data': `if (!['css','html'].includes(type) && /(mutate|create|update|delete|save|write)/.test(content) && !/(refetch|invalidate|refresh|reload|onSuccess)/.test(content)) {
-      results.push(issue('stale-data', 1, 'workflow', 'high', 90, '数据同步问题', '数据变更后缺少刷新机制'));
-    }`,
-  'state-persistence': `if (!['css','html'].includes(type) && /(localStorage\\\\.setItem|writeFileSync|save|persist)/.test(content) && /(localStorage\\\\.getItem|readFileSync|load|restore)/.test(content) && !/(try\\\\s*\\\\{|validate|schema|default)/.test(content)) {
-      results.push(issue('state-persistence', 1, 'code-quality', 'medium', 75, '状态持久化问题', '持久化数据缺少校验'));
-    }`,
-  'platform-compat': `if (/\\\\/usr\\\\/(local\\\\/)?bin\\\\//.test(content) || /C:\\\\\\\\Users/.test(content) || /~\\\\/\\\\./.test(content)) {
-      results.push(issue('platform-compat', 1, 'code-quality', 'medium', 70, '平台兼容性', '硬编码路径不跨平台'));
-    }`,
-  'missing-loading-states': `if (!['css','html'].includes(type) && /(fetch|axios|async|useQuery)/.test(content) && !/(loading|isLoading|isFetching|skeleton|spinner)/.test(content)) {
-      results.push(issue('missing-loading-states', 1, 'ui-ux', 'high', 85, '缺少加载状态', '异步请求期间用户看不到反馈'));
-    }`,
-  'missing-empty-states': `if (!['css','html'].includes(type) && /\\\\.map\\\\(/.test(content) && !/(empty|noData|noResults|isEmpty|length\\\\s*===\\\\s*0)/.test(content)) {
-      results.push(issue('missing-empty-states', 1, 'ui-ux', 'medium', 80, '缺少空状态', '列表渲染未处理空数据'));
-    }`,
+    });`,
+  'credential-exposure': `// credential-exposure: 凭证硬编码 (来自 insights crawl)
+    checks.push({
+      id: 'credential-exposure', title: '凭证硬编码', impact: 100,
+      detect: (ctx) => {
+        for (let i = 0; i < ctx.lines.length; i++) {
+          if (/(api[_-]?key|sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16})/.test(ctx.lines[i]) && !/^\\s*\\/\\//.test(ctx.lines[i]) && !/process\\.env/.test(ctx.lines[i]))
+            return [{ id:'cred-exposure-'+i, checkId:'credential-exposure', file:ctx.file, line:i+1, category:'code-quality', severity:'critical', impact:100, title:'密钥硬编码', description:'应使用环境变量', fixable:false }];
+        }
+        return [];
+      }
+    });`,
+  'data-corruption': `// data-corruption: 数据完整性 (来自 insights crawl)
+    checks.push({
+      id: 'data-corruption', title: '数据完整性风险', impact: 85,
+      detect: (ctx) => {
+        if (['css','html'].includes(ctx.type)) return [];
+        if (/JSON\\.(stringify|parse)/.test(ctx.content) && !/try\\s*\\{/.test(ctx.content))
+          return [{ id:'data-corruption-1', checkId:'data-corruption', file:ctx.file, line:1, category:'code-quality', severity:'high', impact:85, title:'JSON 操作无 try-catch', description:'非法数据将导致崩溃', fixable:false }];
+        return [];
+      }
+    });`,
 };
 
-export function generate(learnedPath, outputPath) {
+export function apply(learnedPath, targetEnginePath) {
   if (!existsSync(learnedPath)) {
     console.log('尚无数据。先运行: insights crawl owner/repo');
     return;
@@ -60,60 +68,50 @@ export function generate(learnedPath, outputPath) {
   const data = JSON.parse(readFileSync(learnedPath, 'utf-8'));
   const patterns = data.patterns || [];
   const totalIssues = data.totalIssues || 0;
-  const repoCount = data.repoCount || data.repos?.length || 0;
+  const repoCount = data.repoCount || 0;
 
-  let checksCode = '';
-  let activeCount = 0;
-
-  for (const p of patterns) {
-    const tmpl = CHECK_TEMPLATES[p.checkId];
-    if (!tmpl) continue;
-
-    const evidence = (p.evidence || []).map(e => `${e.repo}(${e.count})`).join(', ');
-    const confidence = p.confidence || Math.min(100, Math.round((p.breadth || 1) / 4 * 50 + Math.log2((p.occurrences || 1) + 1) * 5));
-
-    checksCode += `
-  // ${p.checkId}: ${p.title}
-  // 置信度 ${confidence}% · 出现 ${p.occurrences} 次 · ${p.breadth || '?'}/${repoCount} 仓库
-  // 来源: ${evidence || '无'}
-  {
-    id: '${p.checkId}',
-    title: '${p.title}',
-    category: '${p.category || 'code-quality'}',
-    severity: '${p.severity || 'medium'}',
-    impact: ${p.impact || 50},
-    confidence: ${confidence},
-    detect: (ctx) => {
-      const results = [];
-      const { content, lines, type } = ctx;
-      ${tmpl}
-      return results;
-    }
-  },
-`;
-    if (confidence >= 50) activeCount++;
+  if (!existsSync(targetEnginePath)) {
+    console.log(`目标文件不存在: ${targetEnginePath}`);
+    return;
   }
 
-  const code = `// ══════════════════════════════════════════════════
-// data-checks.js — 自动生成于 ${new Date().toISOString()}
-// 来源: ${repoCount} 个 AI 项目 · ${totalIssues} 个 issue
-// 运行 \`insights generate\` 重新生成此文件
-// ══════════════════════════════════════════════════
+  let engine = readFileSync(targetEnginePath, 'utf-8');
 
-const _id = (() => { let c = 0; return () => ++c; })();
+  // Generate check code blocks, sorted by frequency
+  const sorted = [...patterns].sort((a, b) => b.occurrences - a.occurrences);
+  let injectCode = `\n  // --- data-driven checks (insights) ---
+  // Generated from ${repoCount} repos, ${totalIssues} issues\n`;
+  let injectedCount = 0;
 
-function issue(checkId, line, category, severity, impact, title, description) {
-  return { id: checkId + '-' + _id(), checkId, file: '', line, category, severity, impact, title, description, fixable: false };
-}
+  for (const p of sorted) {
+    const tmpl = CHECK_TEMPLATES[p.checkId];
+    if (!tmpl) continue;
+    const confidence = p.confidence || Math.min(100, Math.round((p.breadth || 1) / 3 * 50 + Math.log2((p.occurrences || 1) + 1) * 5));
+    if (confidence < 50) continue;
 
-export const dataChecks = [${checksCode}];
+    injectCode += `  // ${p.title} · 확신도 ${confidence}% · ${p.occurrences}회 출현\n`;
+    injectCode += tmpl + '\n';
+    injectedCount++;
+  }
 
-export function getActiveChecks(threshold = 50) {
-  return dataChecks.filter(c => (c.confidence || 0) >= threshold);
-}
-`;
+  // Check if already applied — replace old injected code
+  const INJECT_MARKER = '// --- data-driven checks (insights) ---';
+  if (engine.includes(INJECT_MARKER)) {
+    console.log('  ℹ engine.js 已包含 insights 注入的检查，替换旧代码');
+    engine = engine.replace(/\n\s*\/\/ --- data-driven checks \(insights\) ---[\s\S]*?(?=\n\s*\/\/ ---|$)/, '');
+  }
 
-  writeFileSync(outputPath, code, 'utf-8');
-  console.log(`  ✓ 已生成: ${outputPath}`);
-  console.log(`  ℹ ${checksCode.split('id:').length - 1} 条规则 · ${activeCount} 条活跃 (置信度≥50)`);
+  const marker = '    return checks;';
+  const idx = engine.lastIndexOf(marker);
+  if (idx === -1) {
+    console.log('  ✗ 找不到插入点 (return checks)');
+    return;
+  }
+
+  const newEngine = engine.slice(0, idx) + injectCode + '\n' + engine.slice(idx);
+  writeFileSync(targetEnginePath, newEngine, 'utf-8');
+
+  console.log(`\n  ✓ 已注入 ${injectedCount} 条数据驱动检查规则到 engine.js`);
+  console.log(`  ℹ 来源: ${repoCount} 个仓库 · ${totalIssues} 个 issue`);
+  console.log(`  ℹ 下次 tail scan 时自动生效`);
 }

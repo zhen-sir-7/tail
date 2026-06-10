@@ -1,13 +1,10 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { createRequire } from 'module';
 
 import { Scanner } from './scanner.js';
 import { Reporter } from './reporter.js';
 import { Fixer } from './fixer.js';
 import { Profile } from './profile.js';
-
-const require = createRequire(import.meta.url);
 
 let _idCounter = 0;
 const RESET = '\x1b[0m';
@@ -28,30 +25,6 @@ export class Engine {
     this.reporter = new Reporter({ silent });
     this.fixer = new Fixer(this.reporter);
     this.profile = null;
-    this.dataChecks = null;
-    this.solutions = this._loadSolutions();
-  }
-
-  _loadSolutions() {
-    try {
-      const path = join(this.targetDir, 'lib', 'solutions.json');
-      if (existsSync(path)) {
-        const raw = JSON.parse(readFileSync(path, 'utf-8'));
-        return raw.dictionary || {};
-      }
-    } catch {}
-    return {};
-  }
-
-  async _loadDataChecks() {
-    if (this.dataChecks) return;
-    try {
-      const mod = await import(/* @vite-ignore */ join(this.targetDir, 'lib', 'data-checks.js'));
-      this.dataChecks = mod.getActiveChecks ? mod.getActiveChecks() : (mod.dataChecks || []);
-    } catch {
-      // data-checks.js 不存在时静默跳过
-      this.dataChecks = [];
-    }
   }
 
   async init() {
@@ -115,7 +88,6 @@ export class Engine {
       };
 
       // Determine which check groups to run based on profile
-      await this._loadDataChecks();
       const checks = await this._getChecksForProfile(profile);
 
       for (const check of checks) {
@@ -633,27 +605,69 @@ export class Engine {
       });
     }
 
-    // ─── Merge data-driven checks from insights ───
-    if (this.dataChecks && this.dataChecks.length > 0) {
-      const active = this.dataChecks.filter(c => (c.confidence || 0) >= 50);
-      checks.push(...active.map(dc => ({
-        id: dc.id,
-        title: dc.title,
-        impact: dc.impact || 50,
-        detect: (ctx) => {
-          try {
-            const results = dc.detect(ctx) || [];
-            // Patch file path and fixed status from context
-            for (const r of results) {
-              if (!r.file) r.file = ctx.file;
-              r.fixed = false;
-            }
-            return results;
-          } catch { return []; }
-        },
-        _dataDriven: true,
-      })));
-    }
+
+  // --- data-driven checks (insights) ---
+  // Generated from 3 repos, 1730 issues
+  // 静默错误/空 catch · 확신도 100% · 782회 출현
+// silent-failure: 静默错误 (来自 insights crawl)
+    checks.push({
+      id: 'silent-failure', title: '静默错误', impact: 95,
+      detect: (ctx) => {
+        const r = [];
+        for (let i = 0; i < ctx.lines.length - 1; i++) {
+          if (/catch\s*\(/.test(ctx.lines[i]) && ctx.lines[i+1].trim() === '{' && ctx.lines[i+2] && /^\s*\}\s*$/.test(ctx.lines[i+2]))
+            r.push({ id:'silent-failure-'+i, checkId:'silent-failure', file:ctx.file, line:i+1, category:'code-quality', severity:'high', impact:95, title:'空 catch 块', description:'错误被静默吞掉', fixable:false });
+          if (/\.catch\(\s*[\w]+\s*=>\s*\{\s*\}\s*\)/.test(ctx.lines[i]))
+            r.push({ id:'silent-failure-catch-'+i, checkId:'silent-failure', file:ctx.file, line:i+1, category:'code-quality', severity:'high', impact:95, title:'.catch() 为空', description:'Promise 错误被忽略', fixable:false });
+        }
+        return r;
+      }
+    });
+  // 无限加载/无超时 · 확신도 100% · 420회 출현
+// infinite-loading: 缺少超时 (来自 insights crawl)
+    checks.push({
+      id: 'infinite-loading', title: '缺少超时', impact: 90,
+      detect: (ctx) => {
+        if (ctx.type === 'css') return [];
+        if (/(fetch|axios|useQuery|mutateAsync)/.test(ctx.content) && !/(AbortController|signal|timeout|Promise\.race)/.test(ctx.content))
+          return [{ id:'infinite-loading-1', checkId:'infinite-loading', file:ctx.file, line:1, category:'workflow', severity:'high', impact:90, title:'异步操作无超时', description:'可能永远挂起，建议加 AbortController', fixable:false }];
+        return [];
+      }
+    });
+  // 凭证泄露风险 · 확신도 100% · 256회 출현
+// credential-exposure: 凭证硬编码 (来自 insights crawl)
+    checks.push({
+      id: 'credential-exposure', title: '凭证硬编码', impact: 100,
+      detect: (ctx) => {
+        for (let i = 0; i < ctx.lines.length; i++) {
+          if (/(api[_-]?key|sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16})/.test(ctx.lines[i]) && !/^\s*\/\//.test(ctx.lines[i]) && !/process\.env/.test(ctx.lines[i]))
+            return [{ id:'cred-exposure-'+i, checkId:'credential-exposure', file:ctx.file, line:i+1, category:'code-quality', severity:'critical', impact:100, title:'密钥硬编码', description:'应使用环境变量', fixable:false }];
+        }
+        return [];
+      }
+    });
+  // 缺少输入验证 · 확신도 100% · 250회 출현
+// missing-input-validation: 缺少输入验证 (来自 insights crawl)
+    checks.push({
+      id: 'missing-input-validation', title: '缺少输入验证', impact: 90,
+      detect: (ctx) => {
+        if (['css','html'].includes(ctx.type)) return [];
+        if (/(req\.(body|params|query)|process\.argv|prompt|input|formData)/.test(ctx.content) && !/(validate|zod|yup|joi|schema|sanitize)/.test(ctx.content))
+          return [{ id:'input-validation-1', checkId:'missing-input-validation', file:ctx.file, line:1, category:'workflow', severity:'high', impact:90, title:'输入未验证', description:'可能导致崩溃或安全漏洞', fixable:false }];
+        return [];
+      }
+    });
+  // 数据完整性风险 · 확신도 100% · 15회 출현
+// data-corruption: 数据完整性 (来自 insights crawl)
+    checks.push({
+      id: 'data-corruption', title: '数据完整性风险', impact: 85,
+      detect: (ctx) => {
+        if (['css','html'].includes(ctx.type)) return [];
+        if (/JSON\.(stringify|parse)/.test(ctx.content) && !/try\s*\{/.test(ctx.content))
+          return [{ id:'data-corruption-1', checkId:'data-corruption', file:ctx.file, line:1, category:'code-quality', severity:'high', impact:85, title:'JSON 操作无 try-catch', description:'非法数据将导致崩溃', fixable:false }];
+        return [];
+      }
+    });
 
     return checks;
   }
@@ -758,22 +772,8 @@ export class Engine {
     this.reporter.issue(issue);
     const guidance = this._guidanceFor(issue.checkId);
     if (guidance) {
-      this.reporter.raw(`    ${CYAN}└ 修复思路: ${guidance}${RESET}`);
+      this.reporter.raw(`    ${CYAN}└ 修复思路: ${guidance}${RESET}\n`);
     }
-    // Show real-world solutions from the dictionary
-    const checkSolutions = this.solutions[issue.checkId];
-    if (checkSolutions && checkSolutions.solutions && checkSolutions.solutions.length > 0) {
-      const top = checkSolutions.solutions[0];
-      const sources = top.sources?.map(s => `#${s.issue}`).join(', ') || '';
-      this.reporter.raw(`    ${GREEN}📖 真实项目解法: ${top.label}${RESET}`);
-      if (top.code) {
-        this.reporter.raw(`       ${DIM}示例: ${top.code.slice(0, 100)}${RESET}`);
-      }
-      if (sources) {
-        this.reporter.raw(`       ${DIM}来源: ${sources}${RESET}`);
-      }
-    }
-    this.reporter.raw('');
   }
 
   _guidanceFor(checkId) {

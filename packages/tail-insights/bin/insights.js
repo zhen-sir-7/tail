@@ -24,16 +24,16 @@ function printHelp() {
   命令:
     crawl <repo...>   爬取 GitHub 项目的 issue 并分析
     enrich            爬取 issue 评论/PR，提取解决方案字典
-    generate <path>   生成 data-checks.js (默认输出到 ../tail/lib/)
+    apply <path>      把数据驱动的检查注入到 tail 的 engine.js
     list              列出已学习的模式
     stats             查看数据统计
     --help            显示帮助
 
   示例:
-    insights crawl owner/repo1 owner/repo2   # 爬取并分析模式
-    insights enrich                           # 提取解决方案
-    insights generate                         # 生成检查规则
-    insights list                             # 查看已学习模式
+    insights crawl owner/repo1 repo2     # 爬取并分析模式
+    insights enrich                      # 提取解决方案
+    insights apply ../tail/lib/engine.js  # 注入到 tail
+    insights list                        # 查看已学习模式
   `);
 }
 
@@ -51,10 +51,10 @@ async function main() {
       listPatterns(LEARNED_FILE);
       break;
     }
-    case 'generate': {
-      const target = args[1] || join(ROOT, '..', 'tail', 'lib', 'data-checks.js');
-      const { generate } = await import('../lib/generator.js');
-      generate(LEARNED_FILE, target);
+    case 'apply': {
+      const target = args[1] || join(ROOT, '..', 'tail', 'lib', 'engine.js');
+      const { apply } = await import('../lib/generator.js');
+      apply(LEARNED_FILE, target);
       break;
     }
     case 'export': {
