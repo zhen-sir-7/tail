@@ -1,0 +1,17 @@
+{
+  "name": "tail",
+  "version": "1.0.0",
+  "description": "轻量级项目打磨 CLI — 自动扫描、修复、循环优化",
+  "type": "module",
+  "bin": {
+    "tail": "./bin/polish.js"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "tail-insights",
+  "version": "1.0.0",
+  "description": "从 AI 项目的 issue 中学习模式，持续改进 tail 工具的检查规则",
+  "type": "module",
+  "bin": {
+    "insights": "./bin/insights.js"
+  },
+  "engines": { "node": ">=18.0.0" },
+  "license": "MIT"
+}

@@ -1,0 +1,10 @@
+{
+  "projectType": "cli",
+  "suppress": [],
+  "include": ["**/*.{html,css,js,jsx,ts,tsx,vue,svelte}"],
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.git/**", "**/*.min.*", "**/coverage/**", "**/.polishing-loop/**"],
+  "checks": { "ui-ux": true, "code-quality": true, "workflow": true },
+  "threshold": 80,
+  "maxLoops": 10,
+  "_generatedFrom": { "framework": null, "type": "cli", "styling": "css", "stateManagement": "built-in" }
+}

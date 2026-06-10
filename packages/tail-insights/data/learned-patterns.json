@@ -1,0 +1,409 @@
+{
+  "crawledAt": "2026-06-10T09:55:42.672Z",
+  "repos": [
+    {
+      "repo": "anthropics/claudes-c-compiler",
+      "language": "Rust",
+      "stars": 2704,
+      "totalIssues": 162
+    },
+    {
+      "repo": "onlook-dev/onlook",
+      "language": "TypeScript",
+      "stars": 25899,
+      "totalIssues": 229
+    }
+  ],
+  "patterns": [
+    {
+      "checkId": "platform-assumptions",
+      "title": "平台兼容性",
+      "category": "code-quality",
+      "severity": "medium",
+      "impact": 70,
+      "occurrence": 175,
+      "frequency": 45,
+      "detectHint": "检测硬编码路径或平台特定代码",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 104
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 71
+        }
+      ]
+    },
+    {
+      "checkId": "silent-failure",
+      "title": "静默错误",
+      "category": "code-quality",
+      "severity": "high",
+      "impact": 95,
+      "occurrence": 151,
+      "frequency": 39,
+      "detectHint": "检测空 catch 块、无 .catch() 的 Promise 链",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 86
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 65
+        }
+      ]
+    },
+    {
+      "checkId": "infinite-loading",
+      "title": "无限加载/无超时",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "occurrence": 66,
+      "frequency": 17,
+      "detectHint": "检测 async 操作无 AbortController 或超时机制",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 20
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 46
+        }
+      ]
+    },
+    {
+      "checkId": "missing-input-validation",
+      "title": "缺少输入验证",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "occurrence": 43,
+      "frequency": 11,
+      "detectHint": "检测外部输入但无 schema 验证",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 25
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 18
+        }
+      ]
+    },
+    {
+      "checkId": "data-corruption",
+      "title": "数据完整性风险",
+      "category": "code-quality",
+      "severity": "high",
+      "impact": 85,
+      "occurrence": 41,
+      "frequency": 10,
+      "detectHint": "检测 JSON.parse/stringify 无 try-catch",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 33
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 8
+        }
+      ]
+    },
+    {
+      "checkId": "responsive-issues",
+      "title": "响应式布局问题",
+      "category": "ui-ux",
+      "severity": "high",
+      "impact": 85,
+      "occurrence": 41,
+      "frequency": 10,
+      "detectHint": "检测固定宽高值、缺少媒体查询",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 14
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 27
+        }
+      ]
+    },
+    {
+      "checkId": "state-persistence",
+      "title": "状态持久化风险",
+      "category": "code-quality",
+      "severity": "medium",
+      "impact": 75,
+      "occurrence": 26,
+      "frequency": 7,
+      "detectHint": "检测持久化操作无数据校验",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 9
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 17
+        }
+      ]
+    },
+    {
+      "checkId": "stale-data",
+      "title": "数据同步问题",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "occurrence": 23,
+      "frequency": 6,
+      "detectHint": "检测数据变更后无刷新机制",
+      "evidence": [
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 23
+        }
+      ]
+    },
+    {
+      "checkId": "missing-implementation",
+      "title": "未实现的功能",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "occurrence": 22,
+      "frequency": 6,
+      "detectHint": "检测 TODO/placeholder 残留",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 15
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "checkId": "auth-issues",
+      "title": "认证/权限问题",
+      "category": "workflow",
+      "severity": "critical",
+      "impact": 100,
+      "occurrence": 21,
+      "frequency": 5,
+      "detectHint": "检测 API 调用无鉴权检查",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 2
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 19
+        }
+      ]
+    },
+    {
+      "checkId": "missing-loading-states",
+      "title": "组件缺少加载状态",
+      "category": "ui-ux",
+      "severity": "high",
+      "impact": 85,
+      "occurrence": 17,
+      "frequency": 4,
+      "detectHint": "检测 async 操作但无 loading 变量的组件",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 2
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 15
+        }
+      ]
+    },
+    {
+      "checkId": "credential-exposure",
+      "title": "凭证泄露风险",
+      "category": "code-quality",
+      "severity": "critical",
+      "impact": 100,
+      "occurrence": 16,
+      "frequency": 4,
+      "detectHint": "检测源码中的硬编码密钥",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 8
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 8
+        }
+      ]
+    },
+    {
+      "checkId": "destructive-confirm",
+      "title": "危险操作缺少确认",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 75,
+      "occurrence": 14,
+      "frequency": 4,
+      "detectHint": "检测 delete/remove 操作无确认弹窗",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 4
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "checkId": "missing-empty-states",
+      "title": "列表缺少空状态",
+      "category": "ui-ux",
+      "severity": "medium",
+      "impact": 80,
+      "occurrence": 11,
+      "frequency": 3,
+      "detectHint": "检测 .map() / v-for 渲染但无空数据条件判断",
+      "evidence": [
+        {
+          "repo": "anthropics/claudes-c-compiler",
+          "count": 8
+        },
+        {
+          "repo": "onlook-dev/onlook",
+          "count": 3
+        }
+      ]
+    }
+  ],
+  "rawPatterns": {
+    "loading|spinner|skeleton|placeholder|isLoading|isFetching": {
+      "checkId": "missing-loading-states",
+      "category": "ui-ux",
+      "severity": "high",
+      "impact": 85,
+      "title": "组件缺少加载状态",
+      "detectHint": "检测 async 操作但无 loading 变量的组件"
+    },
+    "empty|no data|no results|blank screen|nothing shows": {
+      "checkId": "missing-empty-states",
+      "category": "ui-ux",
+      "severity": "medium",
+      "impact": 80,
+      "title": "列表缺少空状态",
+      "detectHint": "检测 .map() / v-for 渲染但无空数据条件判断"
+    },
+    "error|crash|white screen|panic|segfault|ICE": {
+      "checkId": "silent-failure",
+      "category": "code-quality",
+      "severity": "high",
+      "impact": 95,
+      "title": "静默错误",
+      "detectHint": "检测空 catch 块、无 .catch() 的 Promise 链"
+    },
+    "timeout|hang|freeze|stuck|infinite|never resolve|挂起|卡死": {
+      "checkId": "infinite-loading",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "title": "无限加载/无超时",
+      "detectHint": "检测 async 操作无 AbortController 或超时机制"
+    },
+    "json|parse|stringify|schema|corrupt|drift|类型转换|数据损坏": {
+      "checkId": "data-corruption",
+      "category": "code-quality",
+      "severity": "high",
+      "impact": 85,
+      "title": "数据完整性风险",
+      "detectHint": "检测 JSON.parse/stringify 无 try-catch"
+    },
+    "validate|validation|input|sanitize|zod|yup|schema": {
+      "checkId": "missing-input-validation",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "title": "缺少输入验证",
+      "detectHint": "检测外部输入但无 schema 验证"
+    },
+    "api[_-]?key|secret|token|password|sk-[^ ]|credential|凭证|密钥": {
+      "checkId": "credential-exposure",
+      "category": "code-quality",
+      "severity": "critical",
+      "impact": 100,
+      "title": "凭证泄露风险",
+      "detectHint": "检测源码中的硬编码密钥"
+    },
+    "save|persist|store|localStorage|writeFile|保存|持久化": {
+      "checkId": "state-persistence",
+      "category": "code-quality",
+      "severity": "medium",
+      "impact": 75,
+      "title": "状态持久化风险",
+      "detectHint": "检测持久化操作无数据校验"
+    },
+    "platform|os|mac|windows|linux|darwin|win32|兼容|平台": {
+      "checkId": "platform-assumptions",
+      "category": "code-quality",
+      "severity": "medium",
+      "impact": 70,
+      "title": "平台兼容性",
+      "detectHint": "检测硬编码路径或平台特定代码"
+    },
+    "responsive|mobile|phone|screen|overflow|layout|响应式|适配": {
+      "checkId": "responsive-issues",
+      "category": "ui-ux",
+      "severity": "high",
+      "impact": 85,
+      "title": "响应式布局问题",
+      "detectHint": "检测固定宽高值、缺少媒体查询"
+    },
+    "auth|login|permission|unauthorized|forbidden|403|401|认证|权限": {
+      "checkId": "auth-issues",
+      "category": "workflow",
+      "severity": "critical",
+      "impact": 100,
+      "title": "认证/权限问题",
+      "detectHint": "检测 API 调用无鉴权检查"
+    },
+    "confirm|accident|undo|不小心|误删|recover|二次确认": {
+      "checkId": "destructive-confirm",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 75,
+      "title": "危险操作缺少确认",
+      "detectHint": "检测 delete/remove 操作无确认弹窗"
+    },
+    "refresh|reload|stale|out of sync|not updating|同步|刷新": {
+      "checkId": "stale-data",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "title": "数据同步问题",
+      "detectHint": "检测数据变更后无刷新机制"
+    },
+    "not implemented|todo|placeholder|stub|fake|mock|未实现|待实现": {
+      "checkId": "missing-implementation",
+      "category": "workflow",
+      "severity": "high",
+      "impact": 90,
+      "title": "未实现的功能",
+      "detectHint": "检测 TODO/placeholder 残留"
+    }
+  }
+}
