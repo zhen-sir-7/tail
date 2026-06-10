@@ -1049,14 +1049,27 @@ export class Engine {
     for (let loopNum = this.state.data.currentLoop + 1; loopNum <= maxLoops; loopNum++) {
       this.reporter.loopHeader(loopNum);
 
-      // Phase 1: Profile
       this.reporter.info('分析项目特征...');
       const profile = await this._buildProfile();
       this._profileSummary(profile);
 
-      // Phase 2: Scan
       this.reporter.info('扫描中...');
-      const issues = await this._runChecks();
+      let issues = await this._runChecks();
+
+      // Auto-fix all 'fix' items at start of each loop
+      const fixItems = issues.filter(i => i.action === 'fix' && !i.fixed);
+      if (fixItems.length > 0) {
+        this.reporter.subheader('🔧 自动修复可直接修改的问题');
+        for (const issue of fixItems) {
+          if (this.fixer.apply(issue)) {
+            this.state.markFixed(issue.id);
+            this.reporter.success(`[${issue.id}] ${issue.title}`);
+          }
+        }
+        // Re-scan after fixes
+        issues = await this._runChecks();
+      }
+
       this.state.setIssues(issues);
 
       if (issues.length === 0) {
@@ -1064,69 +1077,57 @@ export class Engine {
         return;
       }
 
-      const { critical, important, niceToHave } = this._formatIssuesByPriority(issues);
-      this.reporter.raw(`\n  共 ${issues.length} 项 · 严重 ${critical.length} · 重要 ${important.length} · 优化 ${niceToHave.length}\n`);
+      this.reporter.raw(`\n  共 ${issues.length} 项\n`);
+      this.reporter.actionSummary(issues);
+      this.reporter.raw('');
 
-      if (critical.length > 0) {
-        this.reporter.subheader(`🔴 必须修复 (${critical.length})`);
-        for (const issue of critical) this._issueWithGuidance(issue);
+      const byAction = { fix: [], issue: [], pr: [] };
+      for (const i of issues) {
+        if (byAction[i.action]) byAction[i.action].push(i);
       }
-      if (important.length > 0) {
-        this.reporter.subheader(`🟡 建议修复 (${important.length})`);
-        for (const issue of important) this._issueWithGuidance(issue);
+
+      if (byAction.pr.length > 0) {
+        this.reporter.subheader(`🔄 提 PR (${byAction.pr.length})`);
+        for (const issue of byAction.pr) this._issueWithGuidance(issue);
       }
-      if (niceToHave.length > 0) {
-        this.reporter.subheader(`⚪ 可优化 (${niceToHave.length})`);
-        for (const issue of niceToHave) this._issueWithGuidance(issue);
+
+      if (byAction.issue.length > 0) {
+        this.reporter.subheader(`📋 提 Issue (${byAction.issue.length})`);
+        for (const issue of byAction.issue) this._issueWithGuidance(issue);
       }
 
       const prevFixed = this.state.data.fixedIssues;
       this.state.nextLoop();
-      const newFixed = this.state.data.fixedIssues;
-      const delta = newFixed - prevFixed;
+      const delta = this.state.data.fixedIssues - prevFixed;
 
       if (delta > 0) {
-        this.reporter.success(`本轮修复 ${delta} 项，累计修复 ${newFixed}/${this.state.data.totalIssues}`);
-      } else if (critical.length > 0) {
-        this.reporter.raw(`  ${CYAN}仍有 ${critical.length} 个严重问题需手动处理。修复思路已提供，请逐项排查。${RESET}`);
+        this.reporter.success(`本轮自动修复 ${delta} 项`);
       }
 
-      if (critical.length === 0 && important.length === 0) {
-        const allFixed = issues.filter(i => !i.fixed).filter(i => (i.impact || 0) >= 60).length === 0;
-        if (allFixed) {
-          this.reporter.success('🎉 所有严重和重要问题已处理，打磨完成！');
-          return;
-        }
+      const remaining = issues.filter(i => !i.fixed).length;
+      if (remaining === 0) {
+        this.reporter.success('🎉 所有问题已处理！');
+        return;
       }
 
-      // Auto-stop: if auto mode and nothing changed in this round, stop
-      const madeProgress = delta > 0;
-      if (!madeProgress && this.auto && loopNum >= 2) {
-        if (critical.length <= 1) {
-          this.reporter.info('无新变化，自动结束打磨。手动处理后可重新运行。');
-          return;
-        }
-      }
-
-      if (loopNum < maxLoops) {
-        if (this.auto) {
-          if (critical.length > 0 || important.length > 0) {
-            this.reporter.info(`自动模式 — 继续第 ${loopNum + 1} 轮`);
-            continue;
-          }
-          return;
-        }
+      if (!this.auto && loopNum < maxLoops) {
         const { createInterface } = await import('readline');
         const rl = createInterface({ input: process.stdin, output: process.stdout });
         const answer = await new Promise(res => {
-          rl.question('\n  按 Enter 继续下一轮 (a 接受建议并标记, q 退出, s 状态): ', a => { rl.close(); res(a.toLowerCase()); });
+          rl.question('\n  按 Enter 下一轮 (a 标记为已处理, q 退出): ', a => { rl.close(); res(a.toLowerCase()); });
         });
         if (answer === 'q') { this.reporter.info('已退出'); return; }
-        if (answer === 's') { await this.status(); }
         if (answer === 'a') {
-          for (const issue of critical) this.state.markFixed(issue.id);
-          for (const issue of important) this.state.markFixed(issue.id);
-          this.reporter.success(`已标记 ${critical.length + important.length} 项为"已接受"，继续下一轮`);
+          for (const i of issues) { if (!i.fixed) this.state.markFixed(i.id); }
+          this.reporter.success(`已标记 ${remaining} 项为已处理`);
+        }
+      } else if (this.auto) {
+        if (delta === 0 && loopNum >= 2) {
+          this.reporter.info('无新变化，自动结束');
+          return;
+        }
+        if (loopNum < maxLoops) {
+          this.reporter.info(`自动模式 — 继续第 ${loopNum + 1} 轮`);
         }
       }
     }
