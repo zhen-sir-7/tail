@@ -1,0 +1,159 @@
+{
+  "generatedAt": "2026-06-10T10:33:17.508Z",
+  "reposCount": 3,
+  "dictionary": {
+    "stale-data": {
+      "solutions": [],
+      "totalIssues": 13
+    },
+    "missing-input-validation": {
+      "solutions": [
+        {
+          "label": "添加验证函数",
+          "code": "if (!input || input.trim() === \"\") throw new Error(\"Invalid input\");",
+          "description": "<!-- CCC:TRIAGED --> **Triaged** — validated during decomposition of parent issue. Root cause identified, reproduction case provided, acceptance criteria defined. Ready for pickup.",
+          "count": 4,
+          "sources": [
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 85,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/85",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/85#issuecomment-3862991825"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 87,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/87",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/87#issuecomment-3862991840"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 86,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/86",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/86#issuecomment-3862991829"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 78,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/78",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/78#issuecomment-3862991832"
+            }
+          ]
+        }
+      ],
+      "totalIssues": 5
+    },
+    "state-persistence": {
+      "solutions": [
+        {
+          "label": "验证持久化数据",
+          "code": "",
+          "description": "<!-- CCC:TRIAGED --> **Triaged** — validated during decomposition of parent issue. Root cause identified, reproduction case provided, acceptance criteria defined. Ready for pickup.",
+          "count": 8,
+          "sources": [
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 85,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/85",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/85#issuecomment-3862991825"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 88,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/88",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/88#issuecomment-3862991834"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 87,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/87",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/87#issuecomment-3862991840"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 86,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/86",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/86#issuecomment-3862991829"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 84,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/84",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/84#issuecomment-3862991837"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 75,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/75",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/75#issuecomment-3862991839"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 78,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/78",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/78#issuecomment-3862991832"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 77,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/77",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/77#issuecomment-3862991827"
+            }
+          ]
+        },
+        {
+          "label": "数据迁移",
+          "code": "",
+          "description": "<!-- CCC:REVIEWING --> Reviewing — investigating i128 ↔ F128 conversion paths in x86 backend.",
+          "count": 2,
+          "sources": [
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 75,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/75",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/75#issuecomment-3863021352"
+            },
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 24,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/24",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/24#issuecomment-3865213429"
+            }
+          ]
+        }
+      ],
+      "totalIssues": 12
+    },
+    "infinite-loading": {
+      "solutions": [],
+      "totalIssues": 5
+    },
+    "missing-empty-states": {
+      "solutions": [],
+      "totalIssues": 1
+    },
+    "silent-failure": {
+      "solutions": [],
+      "totalIssues": 1
+    },
+    "data-corruption": {
+      "solutions": [
+        {
+          "label": "提供默认值",
+          "code": "const config = { ...defaults, ...userConfig };",
+          "description": "<!-- CCC:COMPLETE --> **Complete** — fix shipped in PR #130. _Generic now validates no-match-no-default and duplicate type constraints.",
+          "count": 1,
+          "sources": [
+            {
+              "repo": "anthropics/claudes-c-compiler",
+              "issue": 106,
+              "url": "https://github.com/anthropics/claudes-c-compiler/issues/106",
+              "commentUrl": "https://github.com/anthropics/claudes-c-compiler/issues/106#issuecomment-3863217293"
+            }
+          ]
+        }
+      ],
+      "totalIssues": 2
+    }
+  }
+}

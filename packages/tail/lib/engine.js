@@ -13,6 +13,7 @@ let _idCounter = 0;
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
 const DIM = '\x1b[2m';
+const GREEN = '\x1b[32m';
 const CYAN = '\x1b[36m';
 
 export class Engine {
@@ -28,6 +29,18 @@ export class Engine {
     this.fixer = new Fixer(this.reporter);
     this.profile = null;
     this.dataChecks = null;
+    this.solutions = this._loadSolutions();
+  }
+
+  _loadSolutions() {
+    try {
+      const path = join(this.targetDir, 'lib', 'solutions.json');
+      if (existsSync(path)) {
+        const raw = JSON.parse(readFileSync(path, 'utf-8'));
+        return raw.dictionary || {};
+      }
+    } catch {}
+    return {};
   }
 
   async _loadDataChecks() {
@@ -745,8 +758,22 @@ export class Engine {
     this.reporter.issue(issue);
     const guidance = this._guidanceFor(issue.checkId);
     if (guidance) {
-      this.reporter.raw(`    ${CYAN}└ 修复思路: ${guidance}${RESET}\n`);
+      this.reporter.raw(`    ${CYAN}└ 修复思路: ${guidance}${RESET}`);
     }
+    // Show real-world solutions from the dictionary
+    const checkSolutions = this.solutions[issue.checkId];
+    if (checkSolutions && checkSolutions.solutions && checkSolutions.solutions.length > 0) {
+      const top = checkSolutions.solutions[0];
+      const sources = top.sources?.map(s => `#${s.issue}`).join(', ') || '';
+      this.reporter.raw(`    ${GREEN}📖 真实项目解法: ${top.label}${RESET}`);
+      if (top.code) {
+        this.reporter.raw(`       ${DIM}示例: ${top.code.slice(0, 100)}${RESET}`);
+      }
+      if (sources) {
+        this.reporter.raw(`       ${DIM}来源: ${sources}${RESET}`);
+      }
+    }
+    this.reporter.raw('');
   }
 
   _guidanceFor(checkId) {
