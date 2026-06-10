@@ -25,6 +25,18 @@ const CATEGORY_ICONS = {
   'workflow': '🔄',
 };
 
+const ACTION_ICONS = {
+  fix: '🔧',
+  issue: '📋',
+  pr: '🔄',
+};
+
+const ACTION_LABELS = {
+  fix: '直接修改',
+  issue: '提 Issue',
+  pr: '提 PR',
+};
+
 const SEVERITY_ICONS = {
   critical: '🔴',
   high: '🟡',
@@ -63,21 +75,34 @@ export class Reporter {
 
   issue(issue) {
     const color = this._color(issue.severity);
-    const icon = this._icon(issue.category);
+    const catIcon = this._icon(issue.category);
     const sIcon = this._severityIcon(issue.severity);
+    const aIcon = ACTION_ICONS[issue.action] || '•';
+    const aLabel = ACTION_LABELS[issue.action] || '';
     const status = issue.fixed
       ? `${GREEN}✓ 已修复${RESET}`
       : `${YELLOW}✗ 待处理${RESET}`;
-    this._out(`  ${icon} ${BOLD}${issue.id}${RESET} ${status}`);
+    this._out(`  ${aIcon} ${BOLD}${issue.id}${RESET} ${status}`);
     this._out(`    ${sIcon} ${color}${issue.title}${RESET}`);
     if (issue.description) {
       this._out(`    ${DIM}${issue.description}${RESET}`);
     }
-    this._out(`    ${DIM}文件: ${issue.file}:${issue.line} | 类别: ${issue.category} | 严重度: ${issue.severity}${RESET}`);
-    if (issue.fixable) {
-      this._out(`    ${GREEN}⚡ 可自动修复${RESET}`);
-    }
+    const action = issue.action ? `${GREEN}⚡ 操作: ${aLabel}${RESET}` : '';
+    this._out(`    ${DIM}${issue.file}:${issue.line} | ${issue.category} | ${issue.severity}${action ? ' | ' : ''}${action}${RESET}`);
     this._out('');
+  }
+
+  actionSummary(issues) {
+    if (!issues || issues.length === 0) return;
+    const byAction = { fix: [], issue: [], pr: [] };
+    for (const i of issues) {
+      if (byAction[i.action]) byAction[i.action].push(i);
+    }
+    const parts = [];
+    if (byAction.fix.length) parts.push(`${GREEN}🔧 直接修改 ${byAction.fix.length}${RESET}`);
+    if (byAction.issue.length) parts.push(`${BLUE}📋 提 Issue ${byAction.issue.length}${RESET}`);
+    if (byAction.pr.length) parts.push(`${MAGENTA}🔄 提 PR ${byAction.pr.length}${RESET}`);
+    if (parts.length > 0) this._out(`  ${parts.join(' · ')}`);
   }
 
   scanSummary(results) {

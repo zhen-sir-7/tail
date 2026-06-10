@@ -669,10 +669,75 @@ export class Engine {
       }
     });
 
+
+  // --- data-driven checks (insights) ---
+  // Generated from 3 repos, 1730 issues
+  // 静默错误/空 catch · 확신도 100% · 782회 출현
+// silent-failure: 静默错误 (提 PR)
+    checks.push({
+      id: 'silent-failure', title: '静默错误', impact: 95,
+      detect: (ctx) => {
+        const r = [];
+        for (let i = 0; i < ctx.lines.length - 1; i++) {
+          if (/catch\s*\(/.test(ctx.lines[i]) && ctx.lines[i+1].trim() === '{' && ctx.lines[i+2] && /^\s*\}\s*$/.test(ctx.lines[i+2]))
+            r.push({ id:'silent-failure-'+i, checkId:'silent-failure', file:ctx.file, line:i+1, category:'code-quality', severity:'high', impact:95, title:'空 catch 块', description:'错误被静默吞掉', fixable:false, action:'pr' });
+          if (/\.catch\(\s*[\w]+\s*=>\s*\{\s*\}\s*\)/.test(ctx.lines[i]))
+            r.push({ id:'silent-failure-catch-'+i, checkId:'silent-failure', file:ctx.file, line:i+1, category:'code-quality', severity:'high', impact:95, title:'.catch() 为空', description:'Promise 错误被忽略', fixable:false, action:'pr' });
+        }
+        return r;
+      }
+    });
+  // 无限加载/无超时 · 확신도 100% · 420회 출현
+// infinite-loading: 缺少超时 (提 PR)
+    checks.push({
+      id: 'infinite-loading', title: '缺少超时', impact: 90,
+      detect: (ctx) => {
+        if (ctx.type === 'css') return [];
+        if (/(fetch|axios|useQuery|mutateAsync)/.test(ctx.content) && !/(AbortController|signal|timeout|Promise\.race)/.test(ctx.content))
+          return [{ id:'infinite-loading-1', checkId:'infinite-loading', file:ctx.file, line:1, category:'workflow', severity:'high', impact:90, title:'异步操作无超时', description:'可能永远挂起，建议加 AbortController', fixable:false, action:'pr' }];
+        return [];
+      }
+    });
+  // 凭证泄露风险 · 확신도 100% · 256회 출현
+// credential-exposure: 凭证硬编码 (提 PR)
+    checks.push({
+      id: 'credential-exposure', title: '凭证硬编码', impact: 100,
+      detect: (ctx) => {
+        for (let i = 0; i < ctx.lines.length; i++) {
+          if (/(api[_-]?key|sk-[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16})/.test(ctx.lines[i]) && !/^\s*\/\//.test(ctx.lines[i]) && !/process\.env/.test(ctx.lines[i]))
+            return [{ id:'cred-exposure-'+i, checkId:'credential-exposure', file:ctx.file, line:i+1, category:'code-quality', severity:'critical', impact:100, title:'密钥硬编码', description:'应使用环境变量', fixable:false, action:'pr' }];
+        }
+        return [];
+      }
+    });
+  // 缺少输入验证 · 확신도 100% · 250회 출현
+// missing-input-validation: 缺少输入验证 (提 PR)
+    checks.push({
+      id: 'missing-input-validation', title: '缺少输入验证', impact: 90,
+      detect: (ctx) => {
+        if (['css','html'].includes(ctx.type)) return [];
+        if (/(req\.(body|params|query)|process\.argv|prompt|input|formData)/.test(ctx.content) && !/(validate|zod|yup|joi|schema|sanitize)/.test(ctx.content))
+          return [{ id:'input-validation-1', checkId:'missing-input-validation', file:ctx.file, line:1, category:'workflow', severity:'high', impact:90, title:'输入未验证', description:'可能导致崩溃或安全漏洞', fixable:false, action:'pr' }];
+        return [];
+      }
+    });
+  // 数据完整性风险 · 확신도 100% · 15회 출현
+// data-corruption: 数据完整性 (提 PR)
+    checks.push({
+      id: 'data-corruption', title: '数据完整性风险', impact: 85,
+      detect: (ctx) => {
+        if (['css','html'].includes(ctx.type)) return [];
+        if (/JSON\.(stringify|parse)/.test(ctx.content) && !/try\s*\{/.test(ctx.content))
+          return [{ id:'data-corruption-1', checkId:'data-corruption', file:ctx.file, line:1, category:'code-quality', severity:'high', impact:85, title:'JSON 操作无 try-catch', description:'非法数据将导致崩溃', fixable:false, action:'pr' }];
+        return [];
+      }
+    });
+
+    // --- end data-driven ---
     return checks;
   }
 
-  _issue(ctx, id, category, severity, title, description) {
+  _issue(ctx, id, category, severity, title, description, action) {
     const uid = `${id}-${++_idCounter}`;
     return {
       id: uid,
@@ -683,9 +748,19 @@ export class Engine {
       severity,
       title,
       description,
-      fixable: false,
+      fixable: action === 'fix',
       impact: this._getImpact(id),
+      action: action || this._defaultAction(id),
     };
+  }
+
+  _defaultAction(id) {
+    // 根据检查 ID 判断默认操作类型
+    const autoFixable = ['img-without-alt', 'button-without-type', 'href-void', 'missing-meta-viewport', 'console-log', 'missing-loading-lazy'];
+    const suggestPR = ['silent-failure', 'infinite-loading', 'credential-exposure', 'data-corruption', 'missing-input-validation', 'state-persistence', 'stale-data', 'platform-assumptions'];
+    if (autoFixable.includes(id)) return 'fix';
+    if (suggestPR.includes(id)) return 'pr';
+    return 'issue';
   }
 
   _getImpact(id) {
@@ -845,19 +920,29 @@ export class Engine {
     const { critical, important, niceToHave } = this._formatIssuesByPriority(issues);
 
     this.reporter.header('待处理问题');
-    this.reporter.raw(`  共 ${issues.length} 项 · 严重 ${critical.length} · 重要 ${important.length} · 优化 ${niceToHave.length}\n`);
+    this.reporter.raw(`  共 ${issues.length} 项\n`);
+    this.reporter.actionSummary(issues);
+    this.reporter.raw('');
 
-    if (critical.length > 0) {
-      this.reporter.subheader(`🔴 必须修复 (${critical.length})`);
-      for (const issue of critical) this._issueWithGuidance(issue);
+    // 按操作类型分组展示
+    const byAction = { fix: [], issue: [], pr: [] };
+    for (const i of issues) {
+      if (byAction[i.action]) byAction[i.action].push(i);
     }
-    if (important.length > 0) {
-      this.reporter.subheader(`🟡 建议修复 (${important.length})`);
-      for (const issue of important) this._issueWithGuidance(issue);
+
+    if (byAction.fix.length > 0) {
+      this.reporter.subheader(`🔧 直接修改 (${byAction.fix.length}) — 运行 tail fix --all`);
+      for (const issue of byAction.fix) this._issueWithGuidance(issue);
     }
-    if (niceToHave.length > 0) {
-      this.reporter.subheader(`⚪ 可优化 (${niceToHave.length})`);
-      for (const issue of niceToHave) this._issueWithGuidance(issue);
+
+    if (byAction.pr.length > 0) {
+      this.reporter.subheader(`🔄 提 PR (${byAction.pr.length}) — 有明确修复方案，建议提交 PR`);
+      for (const issue of byAction.pr) this._issueWithGuidance(issue);
+    }
+
+    if (byAction.issue.length > 0) {
+      this.reporter.subheader(`📋 提 Issue (${byAction.issue.length}) — 涉及产品决策，需项目 owner 确认`);
+      for (const issue of byAction.issue) this._issueWithGuidance(issue);
     }
 
     this.state.nextLoop();
